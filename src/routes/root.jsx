@@ -1,34 +1,64 @@
-import React from "react";
-import { Form, NavLink, Outlet, useLoaderData } from "react-router-dom";
+import React, { useEffect } from "react";
+import {
+  Form,
+  NavLink,
+  Outlet,
+  redirect,
+  useLoaderData,
+  useNavigation,
+  useSubmit,
+} from "react-router-dom";
 import { createContact, getContacts } from "../contacts";
 
-export async function loader() {
-  const contacts = await getContacts();
-  return { contacts };
+export async function loader({ request }) {
+  const url = new URL(request.url);
+  const q = url.searchParams.get("q");
+  const contacts = await getContacts(q);
+  return { contacts, q };
 }
 export async function action() {
   const contact = await createContact();
-  return { contact };
+  return redirect(`/contacts/${contact.id}/edit`);
 }
 
 const Root = () => {
-  const { contacts } = useLoaderData();
-  console.log(contacts);
+  const { contacts, q } = useLoaderData();
+  const submit = useSubmit();
+  const navigation = useNavigation();
+
+  const searching =
+    navigation.location &&
+    new URLSearchParams(navigation.location.search).has("q");
+
+  const handleSearch = (event) => {
+    const isFirstSearch = q == null;
+    submit(event.currentTarget.form, {
+      replace: !isFirstSearch,
+    });
+  };
+
+  useEffect(() => {
+    document.querySelector("#q").value = q;
+  }, [q]);
+
   return (
     <>
       <div id="sidebar">
         <h1>React Router Contacts</h1>
         <div>
-          <form id="search-form" role="search">
+          <Form id="search-form" role="search">
             <input
               type="search"
               id="q"
               name="q"
               aria-label="Search contacts"
               placeholder="Search"
+              defaultValue={q}
+              onChange={handleSearch}
+              className={searching ? "loading" : ""}
             />
-            <div id="search-spinner" aria-hidden hidden={true}></div>
-          </form>
+            <div id="search-spinner" aria-hidden hidden={!searching}></div>
+          </Form>
           <Form method="post">
             <button type="submit">New</button>
           </Form>
